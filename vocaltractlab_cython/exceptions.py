@@ -41,6 +41,11 @@ api_exceptions = dict(
         'The API was not initialized.',
         'Writing the SVG file failed.',
     ],
+    vtlExportTractSvgToStr = [
+        'Success.',
+        'The API was not initialized.',
+        'Could not assign string.',
+    ],
     vtlTractToTube = [
         'Success.',
         'The API was not initialized.',

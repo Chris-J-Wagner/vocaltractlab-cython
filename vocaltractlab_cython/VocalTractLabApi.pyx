@@ -10,6 +10,7 @@ cimport numpy as np
 from pathlib import Path 
 from typing import List, Dict, Union, Optional
 
+from libc.stddef cimport size_t
 
 from .cVocalTractLabApi cimport vtlInitialize
 from .cVocalTractLabApi cimport vtlClose
@@ -21,6 +22,8 @@ from .cVocalTractLabApi cimport vtlGetGlottisParamInfo
 from .cVocalTractLabApi cimport vtlGetGlottisParams
 from .cVocalTractLabApi cimport vtlGetTractParams
 from .cVocalTractLabApi cimport vtlExportTractSvg
+from .cVocalTractLabApi cimport vtlExportTractSvgToStr
+from .cVocalTractLabApi cimport vtlFree
 from .cVocalTractLabApi cimport vtlTractToTube
 from .cVocalTractLabApi cimport vtlFastTractToTube
 from .cVocalTractLabApi cimport vtlGetDefaultTransferFunctionOptions
@@ -1355,6 +1358,96 @@ def tract_state_to_svg(
         )
 
     return
+
+
+def tract_state_to_str(
+        tract_state: np.ndarray,
+        ):
+    """
+    Export vocal tract state to a string representation.
+
+    TODO
+
+    Parameters
+    ----------
+    tract_state : np.ndarray
+        A 1D NumPy array representing the vocal tract state.
+    s : str, TODO
+
+    Raises
+    ------
+    ValueError
+        - If the tract_state is not a 1D array.
+        - If the length of the tract_state does not match the number of vocal tract parameters.
+
+    VtlApiError
+        If the SVG export process fails, a VtlApiError is raised with details.
+
+    Notes
+    -----
+    - Use this function to visualize and export the vocal tract state as an SVG file.
+    - The SVG file visually represents the vocal tract configuration.
+    - The SVG file will be created at the specified svg_path.
+
+    Example
+    -------
+    >>> from vocaltractlab_cython import tract_state_to_svg
+    >>> try:
+    >>>     vocal_tract_state = np.array([0.1, 0.2, 0.3, 0.4, 0.5])  # Example vocal tract state
+    >>>     svg_path = "vocal_tract_state.svg"
+    >>>     tract_state_to_svg(vocal_tract_state, svg_path)
+    >>>     print(f"Vocal tract state exported as SVG: {svg_path}")
+    >>> except ValueError as ve:
+    >>>     print(f"Invalid argument: {ve}")
+    >>> except VtlApiError as e:
+    >>>     print(f"SVG export failed: {e}")
+
+    """
+    vtl_constants = get_constants()
+
+    # Check if the tract state is a 1D array
+    if tract_state.ndim != 1:
+        raise ValueError( 'Tract state must be a 1D array.' )
+
+    # Check if the tract state has the correct length
+    if tract_state.shape[0] != vtl_constants[ 'n_tract_params' ]:
+        raise ValueError(
+            f"""
+            Tract state has length {tract_state.shape[0]}, 
+            but should have length {vtl_constants[ "n_tract_params" ]}.
+            """
+            )
+
+    vtl_constants = get_constants()
+    cdef np.ndarray[np.float64_t, ndim = 1] cTractParams = tract_state.ravel()
+    cdef char* svgStr = NULL;
+    cdef size_t svgStrSize = 0;
+
+    value = vtlExportTractSvgToStr(
+        &cTractParams[0],
+        &svgStr,
+        &svgStrSize,
+        )
+
+    if value != 0:
+        raise VtlApiError(
+            get_api_exception(
+                function_name = 'vtlExportTractSvgToStr',
+                return_value = value,
+                function_args = dict(
+                    tract_state = tract_state
+                )
+            )
+        )
+    
+    try:
+        svg_str = (<bytes>svgStr[:svgStrSize]).decode('utf-8')
+    finally:
+        if svgStr != NULL:
+            vtlFree(svgStr)
+
+    return svg_str
+
 
 def tract_state_to_transfer_function(
         tract_state: np.ndarray,

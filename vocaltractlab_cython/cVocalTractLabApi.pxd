@@ -46,7 +46,12 @@ cdef extern from "VocalTractLabApi.h":
 
     int vtlExportTractSvgToStr(
         double *tractParams,
-        const char *svgStr,
+        char **svgStr,
+        size_t *svgStrSize,
+        )
+
+    void vtlFree(
+        void* p,
         )
 
     int vtlGesturalScoreToAudio(
